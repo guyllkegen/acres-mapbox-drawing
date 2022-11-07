@@ -1,0 +1,98 @@
+{
+  "name": "acres-mapbox-drawing",
+  "main": "dist/index.ts",
+  "description": "",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@babel/polyfill": "^7.12.1",
+    "@mapbox/mapbox-gl-draw": "^1.3.0",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@turf/circle": "^6.5.0",
+    "@turf/distance": "^6.5.0",
+    "@turf/helpers": "^6.5.0",
+    "@turf/kinks": "^6.5.0",
+    "@types/jest": "^29.2.2",
+    "@types/node": "^18.11.9",
+    "@types/react": "^18.0.25",
+    "@types/react-dom": "^18.0.8",
+    "acres-mapbox-utils": "^1.4.1",
+    "eslint-config-airbnb": "^19.0.4",
+    "generate-unique-id": "^2.0.1",
+    "geojson": "^0.5.0",
+    "mapbox-gl": "^2.10.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "^5.0.1",
+    "typescript": "^4.8.4",
+    "uuid": "^9.0.0",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "rm -rf dist && NODE_ENV=production babel src/lib --out-dir dist --copy-files",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/guyllkegen/acres-mapbox-drawing.git"
+  },
+  "keywords": [],
+  "author": "Kegen Guyll",
+  "bugs": {
+    "url": "https://github.com/guyllkegen/acres-mapbox-drawing/issues"
+  },
+  "homepage": "https://github.com/guyllkegen/acres-mapbox-drawing#readme",
+  "license": "MIT",
+  "release": {
+    "branches": [
+      "main",
+      "next"
+    ]
+  },
+  "publishConfig": {
+    "ignore": [
+      "!dist/",
+      "src/",
+      "test/"
+    ]
+  },
+  "files": [
+    "/dist"
+  ],
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.19.3",
+    "@babel/core": "^7.20.2",
+    "@babel/preset-env": "^7.20.2",
+    "@types/geojson": "^7946.0.10",
+    "@types/mapbox__mapbox-gl-draw": "^1.3.2",
+    "@types/mapbox-gl": "^2.7.7",
+    "@types/uuid": "^8.3.4",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "airbnb": "^0.0.2",
+    "eslint-config-airbnb-typescript": "^17.0.0",
+    "eslint-config-standard-with-typescript": "^23.0.0"
+  }
+}
