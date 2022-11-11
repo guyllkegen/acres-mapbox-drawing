@@ -12,8 +12,6 @@
 /build
 /dist
 /lib
-/example
-
 
 # misc
 .DS_Store
