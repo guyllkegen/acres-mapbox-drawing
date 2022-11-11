@@ -10,10 +10,6 @@
 
 # production
 /build
-/dist
-/lib
-/example
-
 
 # misc
 .DS_Store
@@ -25,5 +21,3 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-.npmignore

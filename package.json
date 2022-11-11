@@ -20,7 +20,7 @@
     "@types/node": "^18.11.9",
     "@types/react": "^18.0.25",
     "@types/react-dom": "^18.0.8",
-    "acres-mapbox-utils": "^1.4.1",
+    "acres-mapbox-utils": "^1.5.1",
     "eslint-config-airbnb": "^19.0.4",
     "generate-unique-id": "^2.0.1",
     "geojson": "^0.5.0",

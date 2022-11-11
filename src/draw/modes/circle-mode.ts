@@ -1,3 +1,4 @@
+/* eslint-disable func-names */
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-multi-assign */
 // Title: mapbox-gl-draw-circle source code
@@ -6,17 +7,16 @@
 // Code version: 1.1
 // Availability: https://github.com/iamanvesh/mapbox-gl-draw-circle
 
-import dragPan from './utils/drag-pan';
-
 const MapboxDraw = require('@mapbox/mapbox-gl-draw');
 const circle = require('@turf/circle').default;
 const distance = require('@turf/distance').default;
 const turfHelpers = require('@turf/helpers');
+const { enable, disable } = require('./utils/drag-pan');
 
 const DragCircleMode = { ...MapboxDraw.modes.draw_polygon };
 
 // These come from @mapbox/mapbox-gl-draw/src/constants, but importing from there
-//   causes a build error (don't know exact reason why )
+// causes a build error (don't know exact reason why )
 const constants = {
   ACTIVE: 'true',
   ADD: 'add',
@@ -42,7 +42,7 @@ DragCircleMode.onSetup = function () {
   this.addFeature(polygon);
 
   this.clearSelectedFeatures();
-  dragPan.disable(this);
+  disable(this);
   this.updateUIClasses({ mouse: constants.ADD });
   this.activateUIButton(constants.POLYGON);
   this.setActionableState({
@@ -55,14 +55,14 @@ DragCircleMode.onSetup = function () {
   };
 };
 
-DragCircleMode.onMouseDown = DragCircleMode.onTouchStart = function (state, e) {
+DragCircleMode.onMouseDown = DragCircleMode.onTouchStart = function (state:any, e:any) {
   const currentCenter = state.polygon.properties.center;
   if (currentCenter.length === 0) {
     state.polygon.properties.center = [e.lngLat.lng, e.lngLat.lat];
   }
 };
 
-DragCircleMode.onDrag = DragCircleMode.onMouseMove = function (state, e) {
+DragCircleMode.onDrag = DragCircleMode.onMouseMove = function (state:any, e:any) {
   const { center } = state.polygon.properties;
 
   if (center.length > 0) {
@@ -77,18 +77,18 @@ DragCircleMode.onDrag = DragCircleMode.onMouseMove = function (state, e) {
   }
 };
 
-DragCircleMode.onMouseUp = DragCircleMode.onTouchEnd = function (state) {
-  dragPan.enable(this);
+DragCircleMode.onMouseUp = DragCircleMode.onTouchEnd = function (state:any) {
+  enable(this);
   return this.changeMode(constants.SIMPLE_SELECT, {
     featureIds: [state.polygon.id],
   });
 };
 
-DragCircleMode.onClick = DragCircleMode.onTap = function (state) {
+DragCircleMode.onClick = DragCircleMode.onTap = function (state:any) {
   state.polygon.properties.center = [];
 };
 
-DragCircleMode.toDisplayFeatures = function (state, geojson, display) {
+DragCircleMode.toDisplayFeatures = function (state:any, geojson:any, display:any) {
   const isActivePolygon = geojson.properties.id === state.polygon.id;
   const newGeoJSON = { ...geojson };
 

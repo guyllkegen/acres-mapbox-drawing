@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 // Title: mapbox-gl-draw-circle source code
 // Author: CARTO
 // Date: 2019
@@ -8,7 +9,7 @@ import createRectangle from './utils/create-rectangle';
 import { disableZoom, enableZoom } from './utils/zoom';
 
 const DrawRectangleDrag = {
-  onDrag(state, event) {
+  onDrag(state:any, event:any) {
     if (!state.startPoint) {
       return;
     }
@@ -17,7 +18,7 @@ const DrawRectangleDrag = {
     state.rectangle.updateCoordinate(
       '0.1',
       event.lngLat.lng,
-      state.startPoint[1]
+      state.startPoint[1],
     );
 
     // Lower right vertex - maxX, maxY
@@ -27,18 +28,18 @@ const DrawRectangleDrag = {
     state.rectangle.updateCoordinate(
       '0.3',
       state.startPoint[0],
-      event.lngLat.lat
+      event.lngLat.lat,
     );
 
     // Starting point again
     state.rectangle.updateCoordinate(
       '0.4',
       state.startPoint[0],
-      state.startPoint[1]
+      state.startPoint[1],
     );
   },
 
-  onMouseDown(state, event) {
+  onMouseDown(state:any, event:any) {
     event.preventDefault();
 
     const startPoint = [event.lngLat.lng, event.lngLat.lat];
@@ -48,36 +49,36 @@ const DrawRectangleDrag = {
     state.rectangle.updateCoordinate(
       '0.0',
       state.startPoint[0],
-      state.startPoint[1]
+      state.startPoint[1],
     );
   },
 
-  onMouseUp(state, event) {
+  onMouseUp(state:any, event:any) {
     state.endPoint = [event.lngLat.lng, event.lngLat.lat];
 
-    this.updateUIClasses({ mouse: 'pointer' });
-    this.changeMode('simple_select', { featuresId: state.rectangle.id });
+    (this as any).updateUIClasses({ mouse: 'pointer' });
+    (this as any).changeMode('simple_select', { featuresId: state.rectangle.id });
   },
 
   onSetup() {
-    const rectangle = this.newFeature(createRectangle());
-    this.addFeature(rectangle);
+    const rectangle = (this as any).newFeature(createRectangle());
+    (this as any).addFeature(rectangle);
 
-    this.clearSelectedFeatures();
+    (this as any).clearSelectedFeatures();
 
     // UI Tweaks
-    this.updateUIClasses({ mouse: 'add' });
-    this.setActionableState({ trash: true });
+    (this as any).updateUIClasses({ mouse: 'add' });
+    (this as any).setActionableState({ trash: true });
     disableZoom(this);
 
     return { rectangle };
   },
 
-  onStop(state) {
+  onStop(state:any) {
     enableZoom(this);
-    this.updateUIClasses({ mouse: 'none' });
+    (this as any).updateUIClasses({ mouse: 'none' });
 
-    if (!this.getFeature(state.rectangle.id)) {
+    if (!(this as any).getFeature(state.rectangle.id)) {
       return;
     }
 
@@ -85,22 +86,22 @@ const DrawRectangleDrag = {
     state.rectangle.removeCoordinate('0.4');
 
     if (state.rectangle.isValid()) {
-      this.map.fire('draw.create', {
+      (this as any).map.fire('draw.create', {
         features: [state.rectangle.toGeoJSON()],
       });
       return;
     }
 
-    this.deleteFeature([state.rectangle.id], { silent: true });
-    this.changeMode('simple_select', {}, { silent: true });
+    (this as any).deleteFeature([state.rectangle.id], { silent: true });
+    (this as any).changeMode('simple_select', {}, { silent: true });
   },
 
-  onTrash(state) {
-    this.deleteFeature([state.rectangle.id], { silent: true });
-    this.changeMode('simple_select');
+  onTrash(state:any) {
+    (this as any).deleteFeature([state.rectangle.id], { silent: true });
+    (this as any).changeMode('simple_select');
   },
 
-  toDisplayFeatures(state, geojson, display) {
+  toDisplayFeatures(state:any, geojson:any, display:any) {
     const isActivePolygon = geojson.properties.id === state.rectangle.id;
     // eslint-disable-next-line no-param-reassign
     geojson.properties.active = isActivePolygon.toString();

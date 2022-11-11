@@ -4,7 +4,7 @@
 // Code version: 1.0.1
 // Availability: https://github.com/CartoDB/mapboxgl-draw-rectangle-drag
 
-export function enableZoom(context) {
+export function enableZoom(context:any) {
   setTimeout(() => {
     // eslint-disable-next-line
     const store = context._ctx && context._ctx.store;
@@ -22,7 +22,7 @@ export function enableZoom(context) {
   }, 0);
 }
 
-export function disableZoom(context) {
+export function disableZoom(context:any) {
   setTimeout(() => {
     const { map } = context;
     const doubleClickZoom = map && map.doubleClickZoom;
