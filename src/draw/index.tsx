@@ -1,16 +1,22 @@
+import {
+  useRef, useState, useEffect, useCallback,
+} from 'react';
 /* eslint-disable max-len */
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
+import { Feature } from 'geojson';
+import type { Map, PointLike } from 'mapbox-gl';
 import { v4 as uuidv4 } from 'uuid';
-import { Feature, FeatureCollection } from 'geojson';
-import type { GeoJSONSource, Map, PointLike } from 'mapbox-gl';
-import {
-  useCallback, useEffect, useRef, useState,
-} from 'react';
-import drawFillLayer from './layers';
+
+import addLayers from 'acres-mapbox-utils/dist/mapbox/addLayers';
 import IDrawFeature from './models';
-import doesFeaturesHaveKinks from './utils/hasKinks';
+import drawFillLayer from './layers';
 import isAreaTooLarge from './utils/isAreaTooLarge';
+import doesFeaturesHaveKinks from './utils/hasKinks';
 import isOutsideArea from './utils/isOutsideArea';
+import {
+  CircleMode, DrawPolygon, DrawRectangleDrag, ExtendDrawBar,
+} from './modes';
+import getMapboxDrawStyles from './styles';
 
 interface Options {
   allowKinks?: boolean
@@ -20,7 +26,7 @@ interface Options {
   removeFeature: (feature: Feature) => void,
   updateFeature: (feature: Feature) => void,
   errorModal: (
-    drawTool: MapboxDraw,
+    drawTool: MapboxDraw | null,
     hasKinks: boolean,
     tooBig: boolean,
     isOutside: boolean,
@@ -28,23 +34,42 @@ interface Options {
     features?: Feature[]
   ) => void
   featureType?: string | number
+  customMessage?: {
+    start?: string
+    close?: string
+    rectangle?: string
+    circle?: string
+    edit?: string
+    delete?: string
+    empty?: string | null
+  }
 }
 
-type DrawMode = 'polygon' | 'rectangle' | 'circle' | 'edit' | 'delete' | null;
+export type DrawMode = 'polygon' | 'rectangle' | 'circle' | 'edit' | 'delete' | null;
 
 const useDraw = (
-  map: Map,
-  drawTool: MapboxDraw | undefined,
-  draws: IDrawFeature[],
+  map: Map | null | undefined,
+  draws: Feature[],
   options: Options,
 ) => {
   const defaultOptions: Options = {
-    ...options,
     allowKinks: false,
     allowOutsideArea: undefined,
     featureType: 4,
     areaSize: 5000,
+    customMessage: {
+      start: options.customMessage?.start || 'Select a starting point',
+      close: options.customMessage?.close || 'Press enter to close shape',
+      rectangle: options.customMessage?.rectangle || 'Click and drag to draw a rectangle',
+      circle: options.customMessage?.circle || 'Click and drag to draw a pivot',
+      edit: options.customMessage?.edit || 'Press enter to finish editing',
+      delete: options.customMessage?.delete || 'Press delete to remove shape',
+      empty: options.customMessage?.empty || null,
+      ...options.customMessage,
+    },
+    ...options,
   };
+
   const [directSelection, setDirectSelection] = useState<Feature[] | null>(
     null,
   );
@@ -56,10 +81,19 @@ const useDraw = (
   const [isHoveringOverVertex, setIsHoveringOverVertex] = useState<boolean>(false);
   const [errors, setErrors] = useState<any[]>([]);
   const [polygonClicks, setPolygonClicks] = useState<number>(0);
+  const [label, setLabel] = useState<string | null | undefined>(null);
   const directSelectionRef = useRef<Feature[] | null>(directSelection);
   const originalSelectionRef = useRef<Feature[] | null>(originalSelection);
   const isDrawingRef = useRef(isDrawing);
   const isHoveringOverVertexRef = useRef(isHoveringOverVertex);
+  const [drawToolState, setDrawTool] = useState<MapboxDraw | null>(null);
+  const drawTool = useRef<MapboxDraw | null>(null);
+
+  useEffect(() => {
+    if (!map) return;
+
+    addLayers(map, [drawFillLayer]);
+  }, [map]);
 
   useEffect(() => {
     directSelectionRef.current = directSelection;
@@ -78,39 +112,124 @@ const useDraw = (
   }, [isHoveringOverVertex]);
 
   useEffect(() => {
-    if (!drawTool || !map) return;
-
     try {
-      const allBoundaries: FeatureCollection = {
-        features: draws,
-        type: 'FeatureCollection' as const,
-      };
+      if (!map) return;
+      draws.forEach((f) => {
+        if (!drawTool.current) return;
 
-      try {
-        if (!map) return;
-
-        (map.getSource(drawFillLayer.id) as GeoJSONSource).setData(
-          allBoundaries,
-        );
-      } catch (err) {
-        setErrors((prevErr) => [err, ...prevErr]);
-      }
+        drawTool.current.add(f);
+      });
     } catch (err) {
       setErrors((prevErr) => [err, ...prevErr]);
     }
   }, [draws, drawTool, map]);
 
   useEffect(() => {
-    if (drawTool) {
-      if (drawTool.getMode() === 'simple_select') {
-        setIsDrawing(false);
+    if (!map) return;
+
+    drawTool.current = new MapboxDraw({
+      clickBuffer: 16,
+      controls: {
+        combine_features: true,
+        polygon: true,
+        trash: true,
+      },
+      modes: {
+        ...MapboxDraw.modes,
+        draw_circle: CircleMode,
+        draw_polygon: DrawPolygon,
+        draw_rectangle: DrawRectangleDrag as any,
+      },
+      styles: getMapboxDrawStyles(),
+      userProperties: true,
+    });
+
+    setDrawTool(drawTool.current);
+  }, [map]);
+
+  useEffect(() => {
+    if (!map || !drawTool.current) return;
+
+    function save() {
+      if (!drawTool.current) return;
+      drawTool.current.changeMode('draw_circle');
+    }
+
+    const drawBar = new ExtendDrawBar({
+      draw: drawTool.current,
+      buttons: [{
+        on: 'click',
+        action: save,
+        classes: [
+          'mapbox-gl-draw_circle',
+        ],
+        content: '<span>⭕</span>',
+      }],
+    });
+
+    map.on('load', () => {
+      map.addControl(drawBar, 'top-left');
+    });
+  }, [map, drawTool]);
+
+  const getDrawTooltipLabel = useCallback(() => {
+    if (!isDrawing) {
+      setLabel(defaultOptions.customMessage!.empty);
+      return;
+    }
+
+    if (
+      isHoveringOverVertex
+      && polygonClicks > 2
+      && mode === 'polygon'
+    ) {
+      setLabel(defaultOptions.customMessage!.close);
+    }
+
+    switch (mode) {
+      case 'polygon': {
+        if (polygonClicks === 0) {
+          setLabel(defaultOptions.customMessage!.start);
+          break;
+        }
+
+        if (polygonClicks > 2) {
+          setLabel(defaultOptions.customMessage!.close);
+          break;
+        }
+        setLabel(defaultOptions.customMessage!.empty);
+        break;
+      }
+      case 'rectangle': {
+        setLabel(defaultOptions.customMessage!.rectangle);
+        break;
+      }
+      case 'circle': {
+        setLabel(defaultOptions.customMessage!.circle);
+        break;
+      }
+      case 'edit': {
+        setLabel(defaultOptions.customMessage!.edit);
+        break;
+      }
+      case 'delete': {
+        setLabel(defaultOptions.customMessage!.delete);
+        break;
+      }
+      default: {
+        setLabel(defaultOptions.customMessage!.empty);
+        break;
       }
     }
-  }, [drawTool]);
+  }, [mode, isHoveringOverVertex, polygonClicks, isDrawing]);
+
+  useEffect(() => {
+    getDrawTooltipLabel();
+  }, [getDrawTooltipLabel]);
 
   const onDrawCreate = useCallback(
     (e: { features: Feature[] }) => {
-      if (!map || !drawTool) return;
+      if (!map || !drawTool.current) return;
 
       const tooBig = isAreaTooLarge(e.features, defaultOptions.areaSize);
       const hasKinks = doesFeaturesHaveKinks(e.features);
@@ -125,7 +244,7 @@ const useDraw = (
         }
       });
 
-      drawTool.trash();
+      drawTool.current.trash();
       setIsDrawing(false);
 
       // TODO: Need to display a message saying the area is too big or has kinks
@@ -133,6 +252,7 @@ const useDraw = (
         // Hacky solution to autocomplete
         setTimeout(() => {
           e.features.forEach((f) => {
+            if (!drawTool.current) return;
             const id = uuidv4();
             const drawFeature: IDrawFeature = {
               ...f,
@@ -144,12 +264,12 @@ const useDraw = (
             };
 
             defaultOptions.addFeature(drawFeature);
-            drawTool.add(drawFeature); // Adds back to draw tool for customizability
+            drawTool.current.add(drawFeature); // Adds back to draw tool for customizability
           });
         }, 10);
       } else {
         defaultOptions.errorModal(
-          drawTool,
+          drawTool.current,
           hasKinks,
           tooBig,
           isOutside,
@@ -157,13 +277,15 @@ const useDraw = (
           e.features,
         );
       }
+      setPolygonClicks(0);
     },
     [drawTool, map],
   );
 
   const onDrawSelectionChange = useCallback(
     (e: { features: any[] }) => {
-      const drawMode = drawTool?.getMode();
+      if (!drawTool.current) return;
+      const drawMode = drawTool.current.getMode();
       const inDrawingMode = drawMode === ('draw_polygon' as any)
         || drawMode === ('draw_circle' as any)
         || drawMode === ('draw_rectangle' as any);
@@ -198,8 +320,8 @@ const useDraw = (
 
   const onDrawDelete = useCallback(
     (e: { features: Feature[] }) => {
-      if (drawTool) {
-        const l = drawTool.getAll().features.length;
+      if (drawTool.current) {
+        const l = drawTool.current.getAll().features.length;
 
         setIsDrawing(!l);
       }
@@ -212,6 +334,8 @@ const useDraw = (
           defaultOptions.removeFeature(f);
         }
       });
+      setPolygonClicks(0);
+      setLabel(defaultOptions.customMessage!.empty);
     },
     [drawTool],
   );
@@ -237,8 +361,9 @@ const useDraw = (
       });
 
       if (hasKinks || hasNoCoords || tooBig || isOutside) {
+        if (!drawTool.current) return;
         defaultOptions.errorModal(
-          drawTool,
+          drawTool.current,
           hasKinks,
           tooBig,
           isOutside,
@@ -248,18 +373,20 @@ const useDraw = (
 
         if (directSelectionRef.current) {
           directSelectionRef.current.forEach((f) => {
-            drawTool.add(f);
+            if (!drawTool.current) return;
+            drawTool.current.add(f);
           });
         }
 
         setDirectSelection(null);
-        drawTool.changeMode('simple_select');
+        drawTool.current.changeMode('simple_select');
         setMode(null);
         setIsDrawing(false);
       } else {
+        if (!drawTool.current) return;
         setDirectSelection(e.features);
 
-        const { features } = drawTool.getAll();
+        const { features } = drawTool.current.getAll();
 
         features.forEach((f) => {
           if (f.id) {
@@ -281,7 +408,7 @@ const useDraw = (
 
   const onMapClick = useCallback(() => {
     if (isDrawingRef.current) {
-      setPolygonClicks(polygonClicks + 1);
+      setPolygonClicks((prevState) => prevState + 1);
     }
   }, []);
 
@@ -305,8 +432,10 @@ const useDraw = (
         layers: ['gl-draw-polygon-and-line-vertex-inactive.hot'],
       });
 
-      if (isHoveringOverVertexRef.current !== !!res.length) {
-        setIsHoveringOverVertex(!!res.length);
+      if (res.length) {
+        setIsHoveringOverVertex(false);
+      } else {
+        setIsHoveringOverVertex(true);
       }
     },
     [map],
@@ -315,13 +444,31 @@ const useDraw = (
   const onDrawModeChange = useCallback(() => {
     setDirectSelection(null);
 
-    if (!drawTool) return;
+    if (!drawTool.current) return;
 
-    if (drawTool.getMode() === 'direct_select') {
+    if (drawTool.current.getMode() === 'draw_polygon') {
+      setMode('polygon');
+    }
+
+    if (drawTool.current.getMode() === 'draw_rectangle') {
+      setMode('rectangle');
+    }
+
+    if (drawTool.current.getMode() === 'draw_circle') {
+      setMode('circle');
+    }
+
+    if (drawTool.current.getMode().includes('draw')) {
+      setIsDrawing(true);
+    } else {
+      setIsDrawing(false);
+    }
+
+    if (drawTool.current.getMode() === 'direct_select') {
       setMode('edit');
     }
 
-    const { features } = drawTool.getAll();
+    const { features } = drawTool.current.getAll();
 
     features.forEach((f) => {
       if (f.id) {
@@ -340,7 +487,7 @@ const useDraw = (
 
   // Will cancel the current selection and update selection to original before any modifications
   const undoDraw = useCallback(() => {
-    if (!drawTool) return;
+    if (!drawTool.current) return;
 
     if (originalSelectionRef.current) {
       // Deletes the current feature and re-adds original drawing to draw tool
@@ -353,14 +500,15 @@ const useDraw = (
         }
       });
 
-      drawTool.delete(ids);
+      drawTool.current.delete(ids);
 
       originalSelectionRef.current.forEach((f) => {
-        drawTool.add(f);
+        if (!drawTool.current) return;
+        drawTool.current.add(f);
       });
 
       // Updates boundaries with original selection
-      const { features } = drawTool.getAll();
+      const { features } = drawTool.current.getAll();
 
       features.forEach((f) => {
         if (f.id) {
@@ -379,11 +527,14 @@ const useDraw = (
 
     setOriginalSelection(null);
     setIsDrawing(false);
+    setMode(null);
+    setLabel(defaultOptions.customMessage!.empty);
+    setPolygonClicks(0);
   }, [drawTool]);
 
   const onWindowKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (!drawTool) return;
+      if (!drawTool.current) return;
 
       switch (e.key) {
         // Will cancel the current selection
@@ -394,7 +545,7 @@ const useDraw = (
         }
         // Will add the selection
         case 'Enter': {
-          const { features } = drawTool.getAll();
+          const { features } = drawTool.current.getAll();
 
           features.forEach((f) => {
             if (f.id) {
@@ -409,9 +560,10 @@ const useDraw = (
               defaultOptions.updateFeature(drawFeature);
             }
           });
-          drawTool.changeMode('simple_select');
+          drawTool.current.changeMode('simple_select');
           setMode(null);
           setIsDrawing(false);
+          setLabel(defaultOptions.customMessage!.empty);
           break;
         }
         default:
@@ -462,13 +614,15 @@ const useDraw = (
 
   return {
     mode,
-    isDrawing: isDrawingRef,
+    isDrawing: isDrawingRef.current,
     draws,
     errors,
-    directSelection: directSelectionRef,
-    originalSelection: originalSelectionRef,
-    isHoveringOverVertex: isHoveringOverVertexRef,
+    directSelection: directSelectionRef.current,
+    originalSelection: originalSelectionRef.current,
+    isHoveringOverVertex: isHoveringOverVertexRef.current,
     polygonClicks,
+    label,
+    drawTool: drawToolState,
   };
 };
 

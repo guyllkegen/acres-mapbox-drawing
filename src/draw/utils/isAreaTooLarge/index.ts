@@ -1,4 +1,5 @@
-import { getArea } from 'acres-mapbox-utils/dist/geometry/getAcres';
+// eslint-disable-next-line import/extensions
+import { getArea } from 'acres-mapbox-utils/dist/geometry/getAcres/index.js';
 import type { Feature } from 'geojson';
 
 function isAreaTooLarge(features: Feature[], MAX_DRAW_ACRES?:number) {
