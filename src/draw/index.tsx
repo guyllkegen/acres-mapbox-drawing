@@ -45,7 +45,9 @@ interface Options {
   }
 }
 
-export type DrawMode = 'polygon' | 'rectangle' | 'circle' | 'edit' | 'delete' | null;
+export type Mode = 'polygon' | 'rectangle' | 'circle' | 'edit' | 'delete' | null;
+
+export type DrawMode = 'draw_circle' | 'draw_polygon' | 'draw_rectangle' | 'static' | 'simple_select' | 'draw_line_string' | 'draw_point' | 'direct_select' | string;
 
 const useDraw = (
   map: Map | null | undefined,
@@ -65,7 +67,6 @@ const useDraw = (
       edit: options.customMessage?.edit || 'Press enter to finish editing',
       delete: options.customMessage?.delete || 'Press delete to remove shape',
       empty: options.customMessage?.empty || null,
-      ...options.customMessage,
     },
     ...options,
   };
@@ -77,7 +78,8 @@ const useDraw = (
     null,
   );
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
-  const [mode, setMode] = useState<DrawMode>(null);
+  const [mode, setMode] = useState<Mode>(null);
+  const [drawMode, setDrawMode] = useState<DrawMode>('simple_select');
   const [isHoveringOverVertex, setIsHoveringOverVertex] = useState<boolean>(false);
   const [errors, setErrors] = useState<any[]>([]);
   const [polygonClicks, setPolygonClicks] = useState<number>(0);
@@ -94,6 +96,12 @@ const useDraw = (
 
     addLayers(map, [drawFillLayer]);
   }, [map]);
+
+  useEffect(() => {
+    if (!drawTool.current) return;
+
+    drawTool.current.changeMode(drawMode);
+  }, [drawMode, drawTool]);
 
   useEffect(() => {
     directSelectionRef.current = directSelection;
@@ -285,14 +293,14 @@ const useDraw = (
   const onDrawSelectionChange = useCallback(
     (e: { features: any[] }) => {
       if (!drawTool.current) return;
-      const drawMode = drawTool.current.getMode();
-      const inDrawingMode = drawMode === ('draw_polygon' as any)
-        || drawMode === ('draw_circle' as any)
-        || drawMode === ('draw_rectangle' as any);
+      const dMode = drawTool.current.getMode();
+      const inDrawingMode = dMode === ('draw_polygon' as any)
+        || dMode === ('draw_circle' as any)
+        || dMode === ('draw_rectangle' as any);
 
       const isInDrawMode = !!e.features.length || inDrawingMode;
 
-      if (e.features.length && drawMode === 'simple_select') {
+      if (e.features.length && dMode === 'simple_select') {
         setMode('delete');
       }
 
@@ -304,7 +312,7 @@ const useDraw = (
 
       setIsDrawing(isInDrawMode);
 
-      switch (drawMode) {
+      switch (dMode) {
         case 'direct_select': {
           setDirectSelection(e.features);
           break;
@@ -468,6 +476,8 @@ const useDraw = (
       setMode('edit');
     }
 
+    setDrawMode(drawTool.current.getMode());
+
     const { features } = drawTool.current.getAll();
 
     features.forEach((f) => {
@@ -623,6 +633,8 @@ const useDraw = (
     polygonClicks,
     label,
     drawTool: drawToolState,
+    drawMode,
+    setDrawMode,
   };
 };
 
